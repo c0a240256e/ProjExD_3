@@ -7,7 +7,7 @@ import pygame as pg
 
 WIDTH = 1100  # ゲームウィンドウの幅
 HEIGHT = 650  # ゲームウィンドウの高さ
-NUM_OF_BOMBS = 5  # 爆弾の数
+NUM_OF_BOMBS = 5  # 爆弾の数を表す
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -140,8 +140,7 @@ class Bomb:
         self.rct.move_ip(self.vx, self.vy)
         screen.blit(self.img, self.rct)
 
-
-class Score:  # 演習1
+class Score:  # 演習1:スコア表示
     """
     スコア表示に関するクラス
     """
@@ -149,15 +148,15 @@ class Score:  # 演習1
         self.fonto = pg.font.SysFont("hgp創英角ﾎﾟｯﾌﾟ体", 30)
         self.color = (0, 0, 255)  # 青
         self.value = 0  # スコア初期値
-        self.img = self.fonto.render(f"スコア: {self.value}", 0, self.color)
+        self.img = self.fonto.render(f"Score: {self.value}", 0, self.color)
         self.rct = self.img.get_rect()
         self.rct.center = (100, HEIGHT - 50)
 
     def update(self, screen: pg.Surface):
         # 現在のスコアを再描画
-        self.img = self.fonto.render(f"スコア: {self.value}", 0, self.color)
+        self.img = self.fonto.render(f"Score: {self.value}", 0, self.color)
         screen.blit(self.img, self.rct)
-
+        
 
 def main():
     pg.display.set_caption("たたかえ！こうかとん")
@@ -165,12 +164,18 @@ def main():
     bg_img = pg.image.load("fig/pg_bg.jpg")
     bird = Bird((300, 200))
     # bomb = Bomb((255, 0, 0), 10)
-    # bombs = []
+    # bombs = []  # 爆弾用の空のリスト
     # for _ in range(NUM_OF_BOMBS):
     #     bomb = Bomb((255, 0, 0), 10)
     #     bombs.append(bomb)
+
+    # 練習5:複数の爆弾を作成
     bombs = [Bomb((255, 0, 0), 10) for _ in range(NUM_OF_BOMBS)]
     score = Score()
+
+    #演習2:複数ビーム
+    beams = []  # 複数のビームを扱う空のリスト
+
     beam = None  # ゲーム初期化時にはビームは存在しない
     clock = pg.time.Clock()
     tmr = 0
@@ -178,40 +183,48 @@ def main():
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 return
-            if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:  # キーボードかつスペースキー
+            if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:  # キーボードかつスペースキーなら
                 # スペースキー押下でBeamクラスのインスタンス生成
-                beam = Beam(bird)       
+                beam = Beam(bird)
+                beams.append(beam)  # ビームを複数あつかうためのリストに追加　          
         screen.blit(bg_img, [0, 0])
         
-        for b, bomb in enumerate(bombs):
+        # 練習5:各爆誕とこうかとんの衝突判定
+        for bomb in bombs:
             if bird.rct.colliderect(bomb.rct):
                 # ゲームオーバー時に，こうかとん画像を切り替え，1秒間表示させる
                 bird.change_img(8, screen)
-
+                
                 font = pg.font.Font(None, 80)
                 txt = font.render("Game Over", True, (255, 0, 0))
                 screen.blit(txt, [WIDTH//2-150, HEIGHT//2])
-
+                
                 pg.display.update()
                 time.sleep(1)
                 return
-            
+        
+        # ビームと爆弾の衝突判定
         for b, bomb in enumerate(bombs):
-            if beam is not None:
-                if beam.rct.colliderect(bomb.rct):
-                    beam = None
-                    bombs[b] = None
-                    bird.change_img(6, screen)
-                    pg.display.update()
-                    score.value += 1
-        bombs = [bomb for bomb in bombs if bomb is not None]
+            for i, beam in enumerate(beams):
+                if beam is not None:
+                    if beam.rct.colliderect(bomb.rct):
+                        beams[i], bombs[b] = None, None
+                        bird.change_img(6, screen)
+                        score.value += 1
 
+        # 練習5: 要素がNoneでない爆弾のリストに更新
+        bombs = [bomb for bomb in bombs if bomb is not None]
+        beams = [beam for beam in beams if beam is not None]
         key_lst = pg.key.get_pressed()
         bird.update(key_lst, screen)
-        if beam is not None:  # ビームが存在する場合
-            beam.update(screen)   
-        for bomb in bombs:  # 爆弾が存在する場合
+        for beam in beams:  # ビームのNone判定
+            beam.update(screen)
+            if check_bound(beam.rct) != (True,True):  # ビームが範囲外に出たらリストから削除
+                beam = None
+
+        for bomb in bombs:  # 爆弾のNone判定
             bomb.update(screen)
+        
         score.update(screen)
         pg.display.update()
         tmr += 1
